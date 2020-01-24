@@ -1,0 +1,214 @@
+---
+title: "Acoustic Analysis"
+author: "Xinyu Zhang"
+output: html_notebook
+---
+
+```{r}
+fulltable <- read.csv("results.csv")
+library(dplyr)
+nobins<-fulltable %>%
+  select(Subject, Age, Index, IPA, Sibilant, CoG, Stdev,Position, Vp, Vf)
+#changing the column "Sibilant" to logical:
+nobins$Sibilant <- as.factor(nobins$Sibilant)
+#changing the column "Age" to logical:
+nobins$Age <- as.factor(nobins$Age)
+#save the csv for appendix:
+write.csv(nobins, file = "nobins.csv") #saving this because I might need it later for a different R script
+nobins
+```
+
+```{r}
+#checking whether the distribution is close enough to Gaussian
+library(ggplot2)
+qplot(hrxf$CoG, geom="histogram", bins = 150, xlab = "CoG (Hz)", ylab = "Count") 
+qplot(hrxf$Stdev, geom="histogram", bins = 150, xlab = "Stdev (Hz)", ylab = "Count") 
+```
+
+```{r}
+hrxf %>% 
+ filter(heightP == "m")
+```
+
+
+```{r}
+library(dplyr)
+#categorizing preceding vowels:
+nobins <- read.csv("nobins.csv")
+hrxf <- nobins %>%mutate(
+    heightP = case_when(
+    Vp == "ɛin" ~"h",
+    Vp == "y"~"h",
+    Vp == "i" ~ "h",
+    Vp == "u" ~"h",
+    Vp == "ɛi" ~"h",
+    Vp == "ɶy" ~"h",
+    Vp == "au"~"h", #"a" w/ a hat but not distinguished because of font in R
+    Vp == "ei"~"mh",
+    Vp == "ou" ~"mh",
+    Vp == "ə" ~ "m",
+    Vp == "ɔ" ~ "ml",
+    Vp == "ɛ" ~ "ml",
+    Vp == "aɹ" ~ "l", #"a" w/ a hat but not distinguished because of font in R
+    Vp == "a" ~ "l" #"a" w/ a hat but not distinguished because of font in R
+    )
+    )
+hrxf$heightP <- as.factor(hrxf$heightP)
+
+hrxf <- hrxf %>%mutate(
+    heightF = case_when(
+    Vf == "ɶy" ~"l",
+    Vf == "au"~"l",
+    Vf == "ɔ" ~ "ml",
+    Vf == "a" ~ "l", #"a" w/ a hat but not distinguished because of font in R
+    Vf == "ai" ~ "l", #"a" w/ a hat but not distinguished because of font in R
+    Vf == "ɪ" ~ "mh",
+    Vf == "o" ~ "mh",
+    Vf == "i" ~ "h",
+    Vf == "u" ~ "h",
+    Vf == "ã" ~ "h",  #"a" w/ a hat but not distinguished because of font in R
+    Vf == "y"~"h",
+    Vf == "ə" ~ "m",
+    Vf == "ɚ" ~ "m",
+    Vf == "au" ~ "m" #"a" w/ a hat but not distinguished because of font in R
+    )
+    )
+
+hrxf$heightF <- as.factor(hrxf$heightF)
+
+hrxf <- hrxf %>%mutate(
+roundingP = case_when(Vp == "ɔ" ~ "r",
+                     Vp == "ou" ~ "r",
+                     Vp == "ɶy" ~ "r",
+                     Vp == "u" ~ "r",
+                     Vp == "y" ~ "r",
+                     Vp == "au" ~ "r", #"a" w/ a hat but not distinguished because of font in R
+                     TRUE ~ "nr")
+                     )
+
+hrxf$roundingP <- as.factor(hrxf$roundingP)
+
+
+hrxf <- hrxf %>%mutate(
+roundingF = case_when(Vf == "ɔ" ~ "r",
+                      Vf == "ɶy" ~ "r",
+                      Vf == "o" ~ "r",
+                      Vf == "u" ~ "r",
+                      Vf == "y" ~ "r",
+                      TRUE ~ "nr")
+                      )
+
+hrxf$roundingF <- as.factor(hrxf$roundingF)
+
+
+hrxf <- hrxf %>%mutate(
+rhoticityP = case_when( 
+  Vp == "aɹ" ~ "x", #"a" w/ a hat but not distinguished because of font in R
+  TRUE ~ "nx"
+)
+)
+
+hrxf$rhoticityP <- as.factor(hrxf$rhoticityP)
+
+hrxf <- hrxf %>%mutate(
+rhoticityF = case_when( 
+  Vf == "ɚ" ~ "x", 
+  TRUE ~ "nx"
+)
+)
+
+hrxf$rhoticityF <- as.factor(hrxf$rhoticityF)
+
+#frontness of preceeding vowel
+hrxf <- hrxf %>%mutate(
+frtP = case_when( 
+  Vf == "ɔ" ~ "b",
+  Vf == "ou" ~ "b",
+  Vf == "u" ~ "b",
+  Vf == "au" ~ "b",
+  Vf == "ə" ~ "m",
+  TRUE ~ "f"
+)
+)
+
+hrxf$frtP <- as.factor(hrxf$frtP)
+
+#frontness of following vowel
+hrxf <- hrxf %>%mutate(
+frtF = case_when( 
+  Vf == "ə" ~ "m",
+  Vf == "ɔ" ~ "b",
+  Vf == "o" ~ "b",
+  Vf == "u" ~ "b",
+  Vf == "ɚ" ~ "b",
+  TRUE ~ "f"
+)
+)
+
+hrxf$frtF <- as.factor(hrxf$frtF)
+
+
+library(lme4)
+#contrast coding for the height of the preceeding vowel, using the schwa as the reference level 
+contrast1 <- cbind(c(-1/5, +4/5, -1/5,-1/5, -1/5),c(-1/5, -1/5, +4/5, -1/5,-1/5),c(-1/5, -1/5, -1/5, +4/5, -1/5), c(-1/5, -1/5,-1/5, -1/5, +4/5)) #m,h,mh,ml,l
+colnames(contrast1) <- c("+h-mmhmll", "+mh-hmmll", "+ml-hmhml","+l-hmhmml")
+contrasts(hrxf$heightP) <- contrast1
+
+#contrast coding for the height of the following vowel, using the schwa as the reference level
+contrast2 <- cbind(c(-1/5, +4/5, -1/5,-1/5, -1/5),c(-1/5, -1/5, +4/5, -1/5,-1/5),c(-1/5, -1/5, -1/5, +4/5, -1/5), c(-1/5, -1/5,-1/5, -1/5, +4/5)) #m,h,mh,ml,l
+colnames(contrast2) <- c("+h-mmhmll", "+mh-hmmll", "+ml-hmhml","+l-hmhmml")
+contrasts(hrxf$heightF) <- contrast2
+
+#contrast coding for the rounding of the preceeding vowel
+contrast3 <- cbind (c(-0.5, +0.5))
+colnames (contrast3) <- c("-r+nr")
+contrasts(hrxf$roundingP) <- contrast3
+
+#contrast coding for the rounding of the following vowel
+contrast4 <- cbind (c(-0.5, +0.5))
+colnames (contrast4) <- c("-r+nr")
+contrasts(hrxf$roundingF) <- contrast4
+
+#contrast coding for the rhoticity of the preceeding vowel
+contrast5 <- cbind (c(-0.5, +0.5))
+colnames (contrast5) <- c("-x+nx")
+contrasts(hrxf$rhoticityP) <- contrast5
+
+#contrast coding for the rhoticity of the following vowel
+contrast6 <- cbind (c(-0.5, +0.5))
+colnames (contrast6) <- c("-x+nx")
+contrasts(hrxf$rhoticityF) <- contrast6
+
+#contrast coding for the frontness of the preceeding vowel, using the schwa as the reference level
+contrast7 <- cbind (c(-1/3, +2/3, -1/3), c(-1/3, -1/3, +2/3))#m,f,b
+colnames (contrast7) <- c("+f-mb", "+b,-mf")
+contrasts(hrxf$frtP) <- contrast7
+
+#contrast coding for the frontness of the following vowel, using the schwa as the reference level
+contrast8 <- cbind (c(-1/3, +2/3, -1/3), c(-1/3, -1/3, +2/3))#m,f,b
+colnames (contrast8) <- c("+f-mb", "+b,-mf")
+contrasts(hrxf$frtF) <- contrast8
+
+#contrast coding for position, using the medials as the reference level 
+hrxf$Position <- as.factor(hrxf$Position)
+contrast9 <- cbind (c(-1/3, +2/3, -1/3), c(-1/3, -1/3, +2/3))#m,i,f
+colnames (contrast9) <- c("+i-mf", "+f,-im")
+contrasts(hrxf$Position) <- contrast9
+
+#model
+#trying with only the initials first, to make the model more likely to be runnable
+initials <- hrxf %>% 
+  filter(Position == "initial")
+
+fullModel <- glmer(Age ~ Sibilant*CoG*Stdev*heightP*heightF*roundingP*roundingF*rhoticityP*rhoticityF*frtP*frtF + (CoG*Stdev*heightP*heightF*roundingP*roundingF*rhoticityP*rhoticityF*frtP*frtF|Subject) + (Sibilant*CoG*Stdev*heightP*heightF*roundingP*roundingF*rhoticityP*rhoticityF*frtP*frtF|Index), data = initials, family = binomial)
+summary(fullModel)
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
